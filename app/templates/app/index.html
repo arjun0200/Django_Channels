@@ -9,13 +9,22 @@
 </head>
 
 <body>
-
+  <h1>Group Name: {{groupname}}</h1>
   <textarea id="chat-log" cols="100" rows="20"></textarea><br>
   <input type="text" id="chat-message-input" size="100"><br>
   <input type="button" value="Send" id="chat-message-submit">
+  {{groupname|json_script:"group-name"}}
 
   <script>
-    var ws = new WebSocket('ws://127.0.0.1:8000/ws/sc/')
+    const groupName = JSON.parse(document.getElementById('group-name').textContent)
+    console.log(groupName)
+    var ws = new WebSocket(
+      'ws://'
+      + window.location.host
+      + '/ws/sc/'
+      + groupName
+      + '/'
+    )
     ws.onopen = function () {
       console.log('Websocket Connection open...')
     }
@@ -40,9 +49,6 @@
       }))
       messageInputDom.value = ''
     }
-
-
-
   </script>
 </body>
 
