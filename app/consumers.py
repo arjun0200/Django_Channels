@@ -1,7 +1,10 @@
-# Topic - Chat App with Dynamic Group Name
+# Topic - Database
 from channels.consumer import SyncConsumer, AsyncConsumer
 from channels.exceptions import StopConsumer
 from asgiref.sync import async_to_sync
+import json
+from .models import Chat, Group
+from channels.db import database_sync_to_async
 class MySyncConsumer(SyncConsumer):
   def websocket_connect(self, event):
     print('Websocket Connected...', event)
@@ -21,6 +24,18 @@ class MySyncConsumer(SyncConsumer):
   def websocket_receive(self, event):
     print('Message Received from Client...', event['text'])
     print('Type of Message Received from Client...', type(event['text']))
+    data = json.loads(event['text'])
+    print("Data...", data)
+    print("Type of Data...", type(data))
+    print("Chat Message", data['msg'])
+    # Find Group Object
+    group = Group.objects.get(name = self.group_name)
+    # Create New Chat Object
+    chat = Chat(
+      content = data['msg'],
+      group = group
+    )
+    chat.save()
     async_to_sync(self.channel_layer.group_send)(
       self.group_name, 
       {
@@ -68,6 +83,18 @@ class MyAsyncConsumer(AsyncConsumer):
   async def websocket_receive(self, event):
     print('Message Received from Client...', event['text'])
     print('Type of Message Received from Client...', type(event['text']))
+    data = json.loads(event['text'])
+    print("Data...", data)
+    print("Type of Data...", type(data))
+    print("Chat Message", data['msg'])
+    # Find Group Object
+    group = await database_sync_to_async(Group.objects.get)(name = self.group_name)
+    # Create New Chat Object
+    chat = Chat(
+      content = data['msg'],
+      group = group
+    )
+    await database_sync_to_async(chat.save)()
     await self.channel_layer.group_send(
       self.group_name, 
       {
