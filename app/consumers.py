@@ -1,221 +1,41 @@
-# Topic - Authentication
-from channels.consumer import SyncConsumer, AsyncConsumer
-from channels.exceptions import StopConsumer
-from asgiref.sync import async_to_sync
-import json
-from .models import Chat, Group
-from channels.db import database_sync_to_async
+# Topic - Generic Consumer - WebsocketConsumer and AsyncWebsocketConsumer
 
-class MySyncConsumer(SyncConsumer):
-  def websocket_connect(self, event):
-    print('Websocket Connected...', event)
-    print("Channel Layer...", self.channel_layer)   # get default channel layer from a project
-    print("Channel Name...", self.channel_name)   # get channel Name
-    self.group_name = self.scope['url_route']['kwargs']['groupkaname']
-    print("Group Name...", self.group_name)
-    #  add a channel to a new or existing group
-    async_to_sync(self.channel_layer.group_add)(
-      self.group_name,      # group name
-      self.channel_name
-      )
-    self.send({
-      'type':'websocket.accept'
-    })
+from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 
-  def websocket_receive(self, event):
-    print('Message Received from Client...', event['text'])
-    print('Type of Message Received from Client...', type(event['text']))
-    data = json.loads(event['text'])
-    print("Data...", data)
-    print("Type of Data...", type(data))
-    print("Chat Message", data['msg'])
-    print(self.scope['user'])
-    # Find Group Object
-    group = Group.objects.get(name = self.group_name)
-    if self.scope['user'].is_authenticated:
-      # Create New Chat Object
-      chat = Chat(
-        content = data['msg'],
-        group = group
-      )
-      chat.save()
-      async_to_sync(self.channel_layer.group_send)(
-        self.group_name, 
-        {
-          'type': 'chat.message',
-          'message':event['text']
-        }
-      )
-    else:
-      self.send({
-        'type':'websocket.send',
-        'text': json.dumps({"msg":"Login Required"})
-      })
+class MyWebsocketConsumer(WebsocketConsumer):
+  # This handler is called when client initially opens a connection and is about to finish the WebSocket handshake.
+  def connect(self):
+    print('Websocket Connected...')
+    self.accept()     # To accept the connection
+    # self.close()      # To reject the connection
   
-  def chat_message(self, event):
-    print('Event...', event)
-    print('Actual Data...', event['message'])
-    print('Type of Actual Data...', type(event['message']))
-    self.send({
-      'type': 'websocket.send',
-      'text': event['message']
-    })
+  # This handler is called when data received from Client
+  def receive(self, text_data=None, bytes_data=None):
+    print('Message Received from Client...', text_data)
+    self.send(text_data="Message from server to Client")  # To send Data to Client
+    # self.send(bytes_data=data)    # To Send Binary Frame to Client
+    # self.close()                    # To force-close the connection
+    # self.close(code=4123)            # To Add a custom websocket error code
 
-  # def websocket_receive(self, event):
-  #   print('Message Received from Client...', event['text'])
-  #   print('Type of Message Received from Client...', type(event['text']))
-  #   data = json.loads(event['text'])
-  #   print("Data...", data)
-  #   print("Type of Data...", type(data))
-  #   print("Chat Message", data['msg'])
-  #   print(self.scope['user'])
-  #   # Find Group Object
-  #   group = Group.objects.get(name = self.group_name)
-  #   if self.scope['user'].is_authenticated:
-  #     # Create New Chat Object
-  #     chat = Chat(
-  #       content = data['msg'],
-  #       group = group
-  #     )
-  #     chat.save()
-  #     data['user'] = self.scope['user'].username
-  #     print("Complete Data...", data)
-  #     print("Type of Complete Data...", type(data))
-  #     async_to_sync(self.channel_layer.group_send)(
-  #       self.group_name, 
-  #       {
-  #         'type': 'chat.message',
-  #         'message':json.dumps(data)
-  #       }
-  #     )
-  #   else:
-  #     self.send({
-  #       'type':'websocket.send',
-  #       'text': json.dumps({"msg":"Login Required", "user":"guest"})
-  #     })
+  # This handler is called when either connection to the client is lost, either from the client closing the connection, the server closing the connection, or loss of the socket.
+  def disconnect(self, close_code):
+    print('Websocket Disconnected...', close_code)
+
+class MyAsyncWebsocketConsumer(AsyncWebsocketConsumer):
+  # This handler is called when client initially opens a connection and is about to finish the WebSocket handshake.
+  async def connect(self):
+    print('Websocket Connected...')
+    await self.accept()     # To accept the connection
+    # await self.close()      # To reject the connection
   
-  # def chat_message(self, event):
-  #   print('Event...', event)
-  #   print('Actual Data...', event['message'])
-  #   print('Type of Actual Data...', type(event['message']))
-  #   self.send({
-  #     'type': 'websocket.send',
-  #     'text': event['message']
-  #   })
+  # This handler is called when data received from Client
+  async def receive(self, text_data=None, bytes_data=None):
+    print('Message Received from Client...', text_data)
+    await self.send(text_data="Message from server to Client")  # To send Data to Client
+    # await self.send(bytes_data=data)    # To Send Binary Frame to Client
+    # await self.close()                    # To force-close the connection
+    # await self.close(code=4123)            # To Add a custom websocket error code
 
-
-  def websocket_disconnect(self, event):
-    print('Websocket Disconnected...', event)
-    print("Channel Layer...", self.channel_layer)   # get default channel layer from a project
-    print("Channel Name...", self.channel_name)   # get channel Name
-    async_to_sync(self.channel_layer.group_discard)(
-      self.group_name, 
-      self.channel_name
-      )
-    raise StopConsumer()
-
-class MyAsyncConsumer(AsyncConsumer):
-  async def websocket_connect(self, event):
-    print('Websocket Connected...', event)
-    print("Channel Layer...", self.channel_layer)   # get default channel layer from a project
-    print("Channel Name...", self.channel_name)   # get channel Name
-    self.group_name = self.scope['url_route']['kwargs']['groupkaname']
-    print("Group Name...", self.group_name)
-    #  add a channel to a new or existing group
-    await self.channel_layer.group_add(
-      self.group_name,      # group name
-      self.channel_name
-      )
-    await self.send({
-      'type':'websocket.accept'
-    })
-
-  async def websocket_receive(self, event):
-    print('Message Received from Client...', event['text'])
-    print('Type of Message Received from Client...', type(event['text']))
-    data = json.loads(event['text'])
-    print("Data...", data)
-    print("Type of Data...", type(data))
-    print("Chat Message", data['msg'])
-    # Find Group Object
-    group = await database_sync_to_async(Group.objects.get)(name = self.group_name)
-    if self.scope['user'].is_authenticated:
-      # Create New Chat Object
-      chat = Chat(
-        content = data['msg'],
-        group = group
-      )
-      await database_sync_to_async(chat.save)()
-      await self.channel_layer.group_send(
-        self.group_name, 
-        {
-          'type': 'chat.message',
-          'message':event['text']
-        }
-      )
-    else:
-      await self.send({
-        'type':'websocket.send',
-        'text': json.dumps({"msg":"Login Required"})
-      })
-  
-  async def chat_message(self, event):
-    print('Event...', event)
-    print('Actual Data...', event['message'])
-    print('Type of Actual Data...', type(event['message']))
-    await self.send({
-      'type': 'websocket.send',
-      'text': event['message']
-    })
-  
-  # async def websocket_receive(self, event):
-  #   print('Message Received from Client...', event['text'])
-  #   print('Type of Message Received from Client...', type(event['text']))
-  #   data = json.loads(event['text'])
-  #   print("Data...", data)
-  #   print("Type of Data...", type(data))
-  #   print("Chat Message", data['msg'])
-  #   # Find Group Object
-  #   group = await database_sync_to_async(Group.objects.get)(name = self.group_name)
-  #   if self.scope['user'].is_authenticated:
-  #     # Create New Chat Object
-  #     chat = Chat(
-  #       content = data['msg'],
-  #       group = group
-  #     )
-  #     await database_sync_to_async(chat.save)()
-  #     data['user'] = self.scope['user'].username
-  #     print("Complete Data...", data)
-  #     print("Type of Complete Data...", type(data))
-  #     await self.channel_layer.group_send(
-  #       self.group_name, 
-  #       {
-  #         'type': 'chat.message',
-  #         'message':json.dumps(data)
-  #       }
-  #     )
-  #   else:
-  #     await self.send({
-  #       'type':'websocket.send',
-  #       'text': json.dumps({"msg":"Login Required", "user":"guest"})
-  #     })
-  
-  # async def chat_message(self, event):
-  #   print('Event...', event)
-  #   print('Actual Data...', event['message'])
-  #   print('Type of Actual Data...', type(event['message']))
-  #   await self.send({
-  #     'type': 'websocket.send',
-  #     'text': event['message']
-  #   })
-
-  async def websocket_disconnect(self, event):
-    print('Websocket Disconnected...', event)
-    print("Channel Layer...", self.channel_layer)   # get default channel layer from a project
-    print("Channel Name...", self.channel_name)   # get channel Name
-    await self.channel_layer.group_discard(
-      self.group_name, 
-      self.channel_name
-      )
-    raise StopConsumer()
-  
+  # This handler is called when either connection to the client is lost, either from the client closing the connection, the server closing the connection, or loss of the socket.
+  async def disconnect(self, close_code):
+    print('Websocket Disconnected...', close_code)
