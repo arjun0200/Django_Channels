@@ -1,5 +1,5 @@
 # Topic - Generic Consumer - WebsocketConsumer and AsyncWebsocketConsumer
-# Database
+# Authentication
 
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 from asgiref.sync import async_to_sync
@@ -28,18 +28,23 @@ class MyWebsocketConsumer(WebsocketConsumer):
     print("Data...", data)
     message = data['msg']
     group = Group.objects.get(name= self.group_name)
-    chat = Chat(
-      content = data['msg'],
-      group = group
-    )
-    chat.save()
-    async_to_sync(self.channel_layer.group_send)(
-      self.group_name,
-      {
-        'type':'chat.message',
-        'message': message
-      }
-    )
+    if self.scope['user'].is_authenticated:
+      chat = Chat(
+        content = data['msg'],
+        group = group
+      )
+      chat.save()
+      async_to_sync(self.channel_layer.group_send)(
+        self.group_name,
+        {
+          'type':'chat.message',
+          'message': message
+        }
+      )
+    else:
+      self.send(text_data=json.dumps({
+        "msg": "Login Required"
+      }))
 
   def chat_message(self, event):
     print("Event...", event)
@@ -79,18 +84,23 @@ class MyAsyncWebsocketConsumer(AsyncWebsocketConsumer):
     print("Data...", data)
     message = data['msg']
     group = await database_sync_to_async(Group.objects.get)(name= self.group_name)
-    chat = Chat(
-      content = data['msg'],
-      group = group
-    )
-    await database_sync_to_async(chat.save)()
-    await self.channel_layer.group_send(
-      self.group_name,
-      {
-        'type':'chat.message',
-        'message': message
-      }
-    )
+    if self.scope['user'].is_authenticated:
+      chat = Chat(
+        content = data['msg'],
+        group = group
+      )
+      await database_sync_to_async(chat.save)()
+      await self.channel_layer.group_send(
+        self.group_name,
+        {
+          'type':'chat.message',
+          'message': message
+        }
+      )
+    else:
+      await self.send(text_data=json.dumps({
+        "msg": "Login Required"
+      }))
 
   async def chat_message(self, event):
     print("Event...", event)
