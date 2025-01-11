@@ -1,9 +1,11 @@
 # Topic - Generic Consumer - WebsocketConsumer and AsyncWebsocketConsumer
-# Chat App with Dynamic Group Name
+# Database
 
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 from asgiref.sync import async_to_sync
 import json
+from .models import Chat, Group
+from channels.db import database_sync_to_async
 
 class MyWebsocketConsumer(WebsocketConsumer):
   # This handler is called when client initially opens a connection and is about to finish the WebSocket handshake.
@@ -25,6 +27,12 @@ class MyWebsocketConsumer(WebsocketConsumer):
     data = json.loads(text_data)
     print("Data...", data)
     message = data['msg']
+    group = Group.objects.get(name= self.group_name)
+    chat = Chat(
+      content = data['msg'],
+      group = group
+    )
+    chat.save()
     async_to_sync(self.channel_layer.group_send)(
       self.group_name,
       {
@@ -70,6 +78,12 @@ class MyAsyncWebsocketConsumer(AsyncWebsocketConsumer):
     data = json.loads(text_data)
     print("Data...", data)
     message = data['msg']
+    group = await database_sync_to_async(Group.objects.get)(name= self.group_name)
+    chat = Chat(
+      content = data['msg'],
+      group = group
+    )
+    await database_sync_to_async(chat.save)()
     await self.channel_layer.group_send(
       self.group_name,
       {
