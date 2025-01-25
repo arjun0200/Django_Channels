@@ -2,6 +2,6 @@ from django.urls import path
 from . import consumers
 
 websocket_urlpatterns = [
-  path('ws/wsc/<str:groupkaname>/', consumers.MyWebsocketConsumer.as_asgi()),
-  path('ws/awsc/<str:groupkaname>/', consumers.MyAsyncWebsocketConsumer.as_asgi()),
+  path('ws/jwc/<str:groupkaname>/', consumers.MyJsonWebsocketConsumer.as_asgi()),
+  path('ws/ajwc/<str:groupkaname>/', consumers.MyAsyncJsonWebsocketConsumer.as_asgi()),
 ]
