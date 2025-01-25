@@ -1,5 +1,4 @@
-# Topic - Generic Consumer - JsonWebsocketConsumer and AsyncJsonWebsocketConsumer
-# Authentication
+# Message from outside Consumer
 from channels.generic.websocket import JsonWebsocketConsumer, AsyncJsonWebsocketConsumer
 from asgiref.sync import async_to_sync
 from .models import Chat, Group
@@ -25,23 +24,18 @@ class MyJsonWebsocketConsumer(JsonWebsocketConsumer):
     print('Message received from client...', content)
     # Find group object
     group = Group.objects.get(name=self.group_name)
-    if self.scope['user'].is_authenticated:
-      chat = Chat(
-        content = content['msg'],
-        group = group
-      )
-      chat.save()
-      async_to_sync(self.channel_layer.group_send)(
-        self.group_name,
-        {
-          'type': 'chat.message',
-          'message':content['msg']
-        }
-      )
-    else:
-      self.send_json({
-        'message': 'Login Required'
-      })
+    chat = Chat(
+      content = content['msg'],
+      group = group
+    )
+    chat.save()
+    async_to_sync(self.channel_layer.group_send)(
+      self.group_name,
+      {
+        'type': 'chat.message',
+        'message':content['msg']
+      }
+    )
 
   def chat_message(self, event):
     print("Event...", event)
@@ -79,23 +73,18 @@ class MyAsyncJsonWebsocketConsumer(AsyncJsonWebsocketConsumer):
     print('Message received from client...', content)
      # Find group object
     group = await database_sync_to_async(Group.objects.get)(name=self.group_name)
-    if self.scope['user'].is_authenticated:
-      chat = Chat(
-        content = content['msg'],
-        group = group
-      )
-      await database_sync_to_async(chat.save)()
-      await self.channel_layer.group_send(
-        self.group_name,
-        {
-          'type': 'chat.message',
-          'message':content['msg']
-        }
-      )
-    else:
-      await self.send_json({
-        'message': 'Login Required'
-      })
+    chat = Chat(
+      content = content['msg'],
+      group = group
+    )
+    await database_sync_to_async(chat.save)()
+    await self.channel_layer.group_send(
+      self.group_name,
+      {
+        'type': 'chat.message',
+        'message':content['msg']
+      }
+    )
 
   async def chat_message(self, event):
     print("Event...", event)
